@@ -15,199 +15,120 @@ using System.Windows.Shapes;
 
 namespace WpfDrawingTest
 {
-    /// <summary>
-    /// Interaction logic for MainWindow.xaml
-    /// </summary>
     public partial class MainWindow : Window
     {
+        private Point _lastMouesePos = new Point();
+
+        public Pen PenSimpleLine { get; set; }
+
+
         public MainWindow()
         {
             InitializeComponent();
 
-            Loaded += MainWindow_Loaded;
+            PenSimpleLine = new Pen(Brushes.Black, 3);
+
+            this.MouseMove += MainWindow_MouseMove;
+
+            this.MouseDown += (sender, e) =>
+            {
+                if (e.LeftButton == MouseButtonState.Pressed)
+                    OnMouseDown();
+            };
+
+            DrawLine(new Point(0, 0), new Point(50, 50), PenSimpleLine);
         }
 
-        private void MainWindow_Loaded(object sender, RoutedEventArgs e)
+
+
+        private void MainWindow_MouseMove(object sender, MouseEventArgs e)
         {
-            DrawingVisual visual = new DrawingVisual();
-
-            using (DrawingContext dc = visual.RenderOpen())
+            if (e.LeftButton == MouseButtonState.Pressed)
             {
-                Pen drawingpen = new Pen(Brushes.Black, 1);
-                //dc.DrawLine(drawingpen, new Point(0, 50), new Point(50, 0));
-                //dc.DrawLine(drawingpen, new Point(50, 0), new Point(100, 50));
-                //dc.DrawLine(drawingpen, new Point(0, 50), new Point(100, 50));
-
-                dc.DrawRectangle(Brushes.Black, drawingpen, new Rect(25, 25, 50, 50));
+                OnMouseDrag();
             }
-
-            DrawingCanva.AddVisual(visual);
-
-
-            DrawingVisual visual2 = new DrawingVisual();
-
-            using (DrawingContext dc = visual2.RenderOpen())
+            else
             {
-                Pen drawingpen = new Pen(Brushes.Red, 1);
-                dc.DrawLine(drawingpen, new Point(0, 0), new Point(DrawingCanva.ActualWidth, DrawingCanva.ActualHeight));
-            }
-
-            DrawingCanva.AddVisual(visual2);
-
-
-
-
-
-
-
-
-
-            DrawingCanva.MouseMove += DrawingCanva_MouseMove;
-
-            DrawingCanva.MouseDown += DrawingCanva_MouseDown;
-
-            DrawingCanva.MouseWheel += DrawingCanva_MouseWheel;
-
-            this.SizeChanged += MainWindow_SizeChanged;
-        }
-
-        private void MainWindow_SizeChanged(object sender, SizeChangedEventArgs e)
-        {
-            DrawingVisual visual2 = (DrawingVisual)DrawingCanva.visuals[1];
-
-            using (DrawingContext dc = visual2.RenderOpen())
-            {
-                Pen drawingpen = new Pen(Brushes.Red, 1);
-                dc.DrawLine(drawingpen, new Point(0, 0), new Point(DrawingCanva.ActualWidth, DrawingCanva.ActualHeight));
+                OnMouseMove();
             }
         }
 
-        private void DrawingCanva_MouseWheel(object sender, MouseWheelEventArgs e)
+        private void OnMouseDrag()
         {
-            //DrawingVisual visual = ((DrawingVisual)DrawingCanva.visuals[0]);
 
-            //if (visual.Transform == null)
-            //    visual.Transform = new ScaleTransform(1, 1, 50, 50);
-
-            //((ScaleTransform)visual.Transform).ScaleX += e.Delta / 240.0;
-            //((ScaleTransform)visual.Transform).ScaleY += e.Delta / 240.0;
-
-            //visual.Transform.Transform(new Point());
         }
 
-        private void DrawingCanva_MouseDown(object sender, MouseButtonEventArgs e)
+        private void OnMouseMove()
         {
-            OldMousePosition = Mouse.GetPosition(DrawingCanva);
-
-            //using (DrawingContext dc = visual.RenderOpen())
-            //{
-            //    dc.PushTransform(new TranslateTransform(0, 2));
-            //}
-
-            //using (DrawingContext dc = visual.RenderOpen())
-            //{
-            //    dc.PushTransform(new TranslateTransform(0.001, 0.001));
-            //}
-            //}
+            Canva.HitTest(Mouse.GetPosition(this));
         }
 
-        public Point OldMousePosition { get; set; }
-
-        private void DrawingCanva_MouseMove(object sender, MouseEventArgs e)
+        private void OnMouseDown()
         {
-            if (e.LeftButton != MouseButtonState.Pressed)
-                return;
+            _lastMouesePos = Mouse.GetPosition(this);
+        }
 
-            Point mousePoint = Mouse.GetPosition(DrawingCanva);
+        private void DrawLine(Point point1, Point point2, Pen pen)
+        {
+            DrawingVisual drawing = new DrawingVisual();
 
-            DrawingVisual visual = ((DrawingVisual)DrawingCanva.visuals[0]);
+            using (DrawingContext drawingContext = drawing.RenderOpen())
+            {
+                drawingContext.DrawLine(pen, point1, point2);
+            }
 
-            if (visual.Transform == null)
-                visual.Transform = new TranslateTransform(0, 0);
-
-            double dx = (OldMousePosition - mousePoint).X;
-            double dy = (OldMousePosition - mousePoint).Y;
-            
-            ((TranslateTransform)visual.Transform).X -= dx;
-            ((TranslateTransform)visual.Transform).Y -= dy;
-
-            visual.Transform.Transform(new Point());
-
-            OldMousePosition = mousePoint;
+            Canva.AddVisual(drawing);
         }
     }
 
 
 
-    public class DrawingCanvas : Panel
+    public class DrawingCanvas : FrameworkElement
     {
-        public List<Visual> visuals = new List<Visual>();
+        private ContainerVisual _container = new ContainerVisual();
 
-        protected override Visual GetVisualChild(int index)
-        {
-            return visuals[index];
-        }
 
         protected override int VisualChildrenCount
         {
             get
             {
-                return visuals.Count;
+                return 1;
             }
         }
+
+
+
+        public DrawingCanvas()
+        {
+            base.AddVisualChild(_container);
+        }
+
+
+
+        protected override Visual GetVisualChild(int index)
+        {
+            return _container;
+        }  
 
         public void AddVisual(Visual visual)
         {
-            visuals.Add(visual);
-
-            base.AddVisualChild(visual);
-            base.AddLogicalChild(visual);
+            _container.Children.Add(visual);
         }
 
-        public void DeleteVisual(Visual visual)
+        public void HitTest(Point point)
         {
-            visuals.Remove(visual);
-
-            base.RemoveVisualChild(visual);
-            base.RemoveLogicalChild(visual);
+            VisualTreeHelper.HitTest(_container, null, new HitTestResultCallback(myCallback), new PointHitTestParameters(point));
         }
 
-        public DrawingVisual GetVisual(Point point)
+        public HitTestResultBehavior myCallback(HitTestResult result)
         {
-            HitTestResult hitResult = VisualTreeHelper.HitTest(this, point);
-
-            return hitResult.VisualHit as DrawingVisual;
-        }
-
-
-
-
-        private List<Visual> hits = new List<Visual>();
-
-        public List<Visual> GetVisuals(Geometry region)
-        {
-            hits.Clear();
-
-            GeometryHitTestParameters parameters = new GeometryHitTestParameters(region);
-
-            HitTestResultCallback callback = new HitTestResultCallback(this.HitTestCallback);
-
-            VisualTreeHelper.HitTest(this, null, callback, parameters);
-
-            return hits;
-        }
-
-        private HitTestResultBehavior HitTestCallback(HitTestResult result)
-        {
-            GeometryHitTestResult geometryResult = (GeometryHitTestResult)result;
-            DrawingVisual visual = result.VisualHit as DrawingVisual;
-            if (visual != null &&
-                geometryResult.IntersectionDetail == IntersectionDetail.FullyInside)
+            if (result.VisualHit.GetType() == typeof(DrawingVisual))
             {
-                hits.Add(visual);
+                ((DrawingVisual)result.VisualHit).Opacity = 0.4;
             }
-            return HitTestResultBehavior.Continue;
-        }
 
+            // Stop the hit test enumeration of objects in the visual tree.
+            return HitTestResultBehavior.Stop;
+        }
     }
 }

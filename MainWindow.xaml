@@ -9,6 +9,6 @@
     
     
     <Grid>
-        <local:DrawingCanvas x:Name="DrawingCanva" Width="Auto" Height="Auto"/>
+        <local:DrawingCanvas x:Name="Canva" Width="Auto" Height="Auto"/>
     </Grid>
 </Window>
